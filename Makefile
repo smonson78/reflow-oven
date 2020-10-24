@@ -19,7 +19,7 @@ $(TARGET).hex: $(TARGET).elf
 $(TARGET).eeprom: $(TARGET).elf
 	avr-objcopy -j .eeprom -O ihex $^ $@
 
-$(TARGET).elf: main.o ssd1306.o spi.o font8.o clock.o
+$(TARGET).elf: main.o ssd1306.o spi.o font.o font8.o clock.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.tif binalign
