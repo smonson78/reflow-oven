@@ -7,7 +7,7 @@ HFUSE=0xDB
 AVRDUDE=avrdude -p $(MCPU) -c $(PROGTYPE) -P $(PROGPORT) -B 20 -i 20
 
 CC=avr-gcc
-CFLAGS=-g -Wall -Os -mmcu=$(MCPU) -DF_CPU=1000000
+CFLAGS=-g -Wall -Os -mmcu=$(MCPU) -DF_CPU=16000000
 #LDLIBS=-lgcc
 HOSTCC=gcc
 
@@ -19,7 +19,7 @@ $(TARGET).hex: $(TARGET).elf
 $(TARGET).eeprom: $(TARGET).elf
 	avr-objcopy -j .eeprom -O ihex $^ $@
 
-$(TARGET).elf: main.o ssd1306.o spi.o font.o font8.o clock.o
+$(TARGET).elf: main.o ssd1306.o spi.o font.o font8.o clock.o max6675.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.tif binalign

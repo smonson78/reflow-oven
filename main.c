@@ -4,28 +4,35 @@
 #include <avr/eeprom.h>
 
 #include <util/delay_basic.h>
+#include <util/delay.h>
 #include <stdint.h>
 
 #include "clock.h"
-#include "buttons.h"
+//#include "buttons.h"
 #include "ssd1306.h"
+#include "max6675.h"
 #include "spi.h"
 #include "font.h"
-
-void delay(int time)
-{
-	while (time--)
-	{
-		/* 1msec delay */
-		_delay_loop_2(F_CPU / 4000);
-	}
-}
-
 
 void setup() {
 	// Initialise the display hardware
 	ssd1306_init();
-	//init_clock();
+	init_clock();
+
+	max6675_init();
+}
+
+void print_num(uint8_t y, uint16_t num) {
+	uint8_t x = 30;
+
+	for (int i = 0; i < 5; i++) {
+		uint8_t digit = num % 10;
+		num /= 10;
+
+		drawletter(x, y, LCD_0 + digit);
+
+		x -= 6;
+	}
 }
 
 int main()
@@ -33,9 +40,9 @@ int main()
 	setup();
 
   /* Allow voltages to settle */
-	delay(200);
+	_delay_ms(200);
 
-	//start_clock();
+	start_clock();
 
 	//video_vline(20, 20, 40, 1);
 	drawstring(0, 0, string_test1);
@@ -43,8 +50,17 @@ int main()
 
 	ssd1306_update();
 
-	while (1)
-		;
+	uint8_t count = 0;
+	while (1) {
+		uint16_t temp = max6675_read_raw();
+		video_rect(0, 18, 36, 18, 0);
+		print_num(18, temp);
+		print_num(18 + 9, count++);
+		ssd1306_update();
+
+		// at least 250mS between reads.
+		_delay_ms(500);
+	};
 
 	return 0;
 }
