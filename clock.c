@@ -11,17 +11,17 @@ ISR(TIMER0_COMPA_vect)
 }
 
 /* Maintain a timer */
-void init_clock(unsigned int frequency)
+void init_clock()
 {
-	/* Get timer1 into CTC mode (clear on compare match) */
+	/* Get timer0 into CTC mode (clear on compare match) */
 	TCCR0A |= _BV(1); // 0 remains clear
 
-	/* Select clock/8 prescaler */
-	TCCR0B &= ~(_BV(0) & _BV(2));
-	TCCR0B |= _BV(1); // 0 and 2 remain clear
+	/* Select clock prescaler */
+	//TCCR0B &= ~(_BV(CS00) | _BV(CS01) | _BV(CS02)); // Clear prescaler bits
+	TCCR0B |= _BV(CS00) | _BV(CS02); // Set new prescaler bits - clock/1024
 
-	/* Frequency of clock is F_CPU / 8 / OCR0A */
-	OCR0A = 200; /* 5000Hz for 8MHz (200uS period) */
+	/* Frequency of clock is F_CPU / 16000000 / OCR0A */
+	OCR0A = 125; /* 16MHz / 1024 / 125 = 125Hz */
 }
 
 void start_clock()

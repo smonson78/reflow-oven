@@ -9,8 +9,9 @@ AVRDUDE=avrdude -p $(MCPU) -c $(PROGTYPE) -P $(PROGPORT) -B 20 -i 20
 CC=avr-gcc
 CFLAGS=-g -Wall -Os -mmcu=$(MCPU) -DF_CPU=1000000
 #LDLIBS=-lgcc
+HOSTCC=gcc
 
-TARGET=lawgiver
+TARGET=toaster
 
 $(TARGET).hex: $(TARGET).elf
 	avr-objcopy -j .text -j .data -O ihex $^ $@
@@ -18,12 +19,18 @@ $(TARGET).hex: $(TARGET).elf
 $(TARGET).eeprom: $(TARGET).elf
 	avr-objcopy -j .eeprom -O ihex $^ $@
 
-$(TARGET).elf: main.o clock.o buttons.o logo.o font8.o
+$(TARGET).elf: main.o ssd1306.o spi.o font8.o clock.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-%.o: %.tif
-	convert -rotate 90 $< gray:$<.raw
+%.o: %.tif binalign
+	convert -rotate 90 $< gray:$<.bin
+	./binalign $<.bin $<.raw
+	$(RM) $<.bin
 	avr-objcopy -I binary -O elf32-avr --rename-section .data=.text $<.raw $@
+
+# Util for padding binary objects
+binalign: binalign.c
+	$(HOSTCC) -o $@ $^
 
 flash: $(TARGET).hex
 	$(AVRDUDE) -U flash:w:$^:i

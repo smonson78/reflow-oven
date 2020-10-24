@@ -1,18 +1,12 @@
 #ifndef __ssd1306_H
 #define __ssd1306_H
 
-#include <Arduino.h>
-#include <SPI.h>
 #include <stdint.h>
+#include "spi.h"
 
 /* Pin designations */
-
-// No chip select for EmbeddedAdventures OLED screen
-//#undef PIN_CS
-#define PIN_RESET       0
-#define PIN_CD          1
-#define PIN_MOSI        3
-#define PIN_CLK         5
+#define PIN_RESET       0 // "RESET"
+#define PIN_CD          1 // "DC"
 
 /* SPI commands */
 #define CMD_LOWER_COLUMN_ADDRESS    0x00
@@ -45,43 +39,22 @@
 #define CMD_CHARGE_PUMP             0x8D
 
 
-class SSD1306 {
-  private:
-    static uint8_t data(uint8_t send);
-    static uint8_t command(uint8_t send);
-    
-  public:
-    // This is the video frame buffer in RAM, which will be copied into the OLED screen.
-    // It is 1024 bytes in size.
-    uint8_t buffer[8][128];
+// This is the video frame buffer in RAM, which will be copied into the OLED screen.
+// It is 1024 bytes in size.
+extern uint8_t video_buffer[8][128];
 
-    void init();
-    void reset();
-    void clear();
-    void update_bank(uint8_t bank);
-    void update();
+void ssd1306_init();
+void ssd1306_reset();
+void ssd1306_clear();
+void ssd1306_update_bank(uint8_t bank);
+void ssd1306_update();
 
-    // Video functions
-  private:
-    void drawbits(uint8_t x, uint8_t y, uint8_t bits);
-    void hscroll_bank_left(uint8_t bank, uint8_t start, uint8_t stop, 
-      int8_t dist, uint8_t mask);
-  public:  
-    void hline(uint8_t x, uint8_t y, uint8_t w, uint8_t val);
-    void vline(uint8_t x, uint8_t y, uint8_t h, uint8_t val);
-    void rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t val);
-    void hscroll(uint8_t x, uint8_t y, uint8_t w, uint8_t h, int8_t dist);
-    void blit(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t src_h, 
-      const uint8_t *src);
-    void invert(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
-
-};
-
-extern SSD1306 screen;
-
-#define STARTADDR(x) do {\
-  command(CMD_LOWER_COLUMN_ADDRESS & x);\
-  command(CMD_HIGHER_COLUMN_ADDRESS | (x >> 4));\
-  } while(0);
+void video_hline(uint8_t x, uint8_t y, uint8_t w, uint8_t val);
+void video_vline(uint8_t x, uint8_t y, uint8_t h, uint8_t val);
+void video_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t val);
+void video_hscroll(uint8_t x, uint8_t y, uint8_t w, uint8_t h, int8_t dist);
+void video_blit(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t src_h, const uint8_t *src);
+void video_drawbits(uint8_t x, uint8_t y, uint8_t bits);
+void video_invert(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 
 #endif

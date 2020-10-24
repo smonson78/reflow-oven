@@ -6,7 +6,13 @@
 
 #include "ssd1306.h"
 
-SSD1306 screen;
+#define STARTADDR(x) do {\
+  command(CMD_LOWER_COLUMN_ADDRESS & x);\
+  command(CMD_HIGHER_COLUMN_ADDRESS | (x >> 4));\
+  } while(0);
+
+// Frame buffer
+uint8_t video_buffer[8][128];
 
 // Device-specific initialisation sequence
 static const uint8_t initdata[] PROGMEM = {
@@ -28,36 +34,38 @@ static const uint8_t initdata[] PROGMEM = {
   CMD_DISPLAY_ON
 };
 
-uint8_t SSD1306::data(uint8_t send) {
+uint8_t data(uint8_t send) {
   cli();
   // Select data transfer
   PORTB |= _BV(PIN_CD); 
-  uint8_t result = SPI.transfer(send);
+  uint8_t result = spi_transfer(send);
   sei();
   return result;
 }
 
-uint8_t SSD1306::command(uint8_t send) {
+uint8_t command(uint8_t send) {
   cli();
   // Select command transfer
   PORTB &= ~(_BV(PIN_CD));  
-  uint8_t result = SPI.transfer(send);
+  uint8_t result = spi_transfer(send);
   sei();
   return result;
 }
 
-void SSD1306::init() {
+void ssd1306_init() {
+
+  spi_init();
   
   // Setup pin output direction for LED display reset and data/command select
-  DDRB |= _BV(PIN_CD) | _BV(PIN_RESET) | _BV(PIN_CLK) | _BV(PIN_MOSI);
+  DDRB |= _BV(PIN_CD) | _BV(PIN_RESET);
   
   // Set RESET line HIGH
   PORTB |= _BV(PIN_RESET);
 
-  reset();
+  ssd1306_reset();
 }
 
-void SSD1306::reset() {
+void ssd1306_reset() {
   // Toggle the reset pin
   PORTB |= _BV(PIN_RESET);
   _delay_loop_2(F_CPU / 1000); // 2ms
@@ -72,42 +80,42 @@ void SSD1306::reset() {
   }
 }
 
-void SSD1306::clear()
+void ssd1306_clear()
 {
   int bank, col;
   for (bank = 0; bank < 7; bank++)
   {
     for (col = 0; col < 128; col++)
-      buffer[bank][col] = 0;
+      video_buffer[bank][col] = 0;
   }
-  update();
+  ssd1306_update();
 }
 
-void SSD1306::update_bank(uint8_t bank) {
+void ssd1306_update_bank(uint8_t bank) {
   command(CMD_SELECT_BANK | bank);
   STARTADDR(0);
   for (uint8_t x = 0; x < 128; x++)
-    data(buffer[bank][x]);
+    data(video_buffer[bank][x]);
 }
 
 // Copy frame buffer from Arduino RAM into the OLED1306 memory
-void SSD1306::update()
+void ssd1306_update()
 {
   for (uint8_t i = 0; i < 8; i++)
-    update_bank(i);
+    ssd1306_update_bank(i);
 }
 
-void SSD1306::hscroll_bank_left(uint8_t bank, uint8_t start, uint8_t stop, int8_t dist, uint8_t mask)
+void hscroll_bank_left(uint8_t bank, uint8_t start, uint8_t stop, int8_t dist, uint8_t mask)
 {
   for (uint8_t col = start; col < stop; col++)
   {
-    uint8_t result = buffer[bank][col] & ~mask;
-    result |= buffer[bank][col - dist] & mask;
-    buffer[bank][col] = result;
+    uint8_t result = video_buffer[bank][col] & ~mask;
+    result |= video_buffer[bank][col - dist] & mask;
+    video_buffer[bank][col] = result;
   }
 }
 
-void SSD1306::hscroll(uint8_t x, uint8_t y, uint8_t w, uint8_t h, int8_t dist)
+void video_hscroll(uint8_t x, uint8_t y, uint8_t w, uint8_t h, int8_t dist)
 {
   uint8_t bank = y / 8;
   
@@ -124,7 +132,7 @@ void SSD1306::hscroll(uint8_t x, uint8_t y, uint8_t w, uint8_t h, int8_t dist)
   hscroll_bank_left(bank, x, x + w, dist, 0xff >> ((y + h) % 8));
 }
 
-void SSD1306::hline(uint8_t x, uint8_t y, uint8_t w, uint8_t val)
+void video_hline(uint8_t x, uint8_t y, uint8_t w, uint8_t val)
 {
   uint8_t bank = y / 8;
   uint8_t mask = 1 << (y % 8);
@@ -132,44 +140,43 @@ void SSD1306::hline(uint8_t x, uint8_t y, uint8_t w, uint8_t val)
   for (uint8_t col = x; col < x + w; col++)
   {
     if (val)
-      buffer[bank][col] |= mask;
+      video_buffer[bank][col] |= mask;
     else
-      buffer[bank][col] &= ~mask;
+      video_buffer[bank][col] &= ~mask;
   }    
 }
 
-
-void SSD1306::vline(uint8_t x, uint8_t y, uint8_t h, uint8_t val)
+void video_vline(uint8_t x, uint8_t y, uint8_t h, uint8_t val)
 {
   while (h-- > 0)
   {
-    buffer[(y + h) / 8][x] |= 1 << ((y + h) % 8);
+    video_buffer[(y + h) / 8][x] |= 1 << ((y + h) % 8);
   }
 }
 
-void SSD1306::rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t val)
+void video_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t val)
 {
   // This could be faster
   while (h-- > 0)
   {
-    hline(x, y + h, w, val);
+    video_hline(x, y + h, w, val);
   }
 }
 
 // Put 8 pixels onto the screen in a vertical row
-void SSD1306::drawbits(uint8_t x, uint8_t y, uint8_t bits)
+void video_drawbits(uint8_t x, uint8_t y, uint8_t bits)
 {
   uint8_t row = y / 8;
   uint8_t offs = y % 8;
 
-  SSD1306::buffer[row][x] |= bits << offs;
+  video_buffer[row][x] |= bits << offs;
   if (offs)
-    SSD1306::buffer[row + 1][x] |= bits >> (8 - offs);
+    video_buffer[row + 1][x] |= bits >> (8 - offs);
 
 }
 
 // Src height must be a multiple of 8.
-void SSD1306::blit(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t src_h, const uint8_t *src)
+void video_blit(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t src_h, const uint8_t *src)
 {
   uint8_t hbytes = (src_h + 7) / 8;
   uint8_t offset = (hbytes * 8) - src_h;
@@ -180,13 +187,13 @@ void SSD1306::blit(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t src_h, co
     
     for (uint8_t row = y; row < y + h; row += 8)
     {
-      drawbits(x + col, row - offset, pgm_read_byte(ptr--));
+      video_drawbits(x + col, row - offset, pgm_read_byte(ptr--));
     }
     
   }
 }
 
-void SSD1306::invert(uint8_t x, uint8_t y, uint8_t w, uint8_t h)
+void video_invert(uint8_t x, uint8_t y, uint8_t w, uint8_t h)
 {
   while (h--)
   {
@@ -194,7 +201,7 @@ void SSD1306::invert(uint8_t x, uint8_t y, uint8_t w, uint8_t h)
     for (i = 0; i < w; i++)
     {
       uint8_t mask = 1 << ((y + h) % 8);
-      buffer[(y + h) / 8][x + i] ^= mask;
+      video_buffer[(y + h) / 8][x + i] ^= mask;
     }
   }
 }

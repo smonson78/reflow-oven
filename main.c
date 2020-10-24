@@ -9,18 +9,84 @@
 
 #include "clock.h"
 #include "buttons.h"
+#include "ssd1306.h"
+#include "spi.h"
 
-#define PIN_RESET       1
-#define PIN_CS          2
-#define PIN_MOSI        3
-#define PIN_CLK         5
-#define PIN_CD		6
-
-#define LOGO_PTR _binary_logo_tif_raw_start
 #define FONT_PTR _binary_font8_tif_raw_start
-
-extern const uint8_t LOGO_PTR[] PROGMEM;
 extern const uint8_t FONT_PTR[] PROGMEM;
+
+/* Font data */
+enum {LCD_A = 0, LCD_C, LCD_D, LCD_E, LCD_F, LCD_G, LCD_H, LCD_I,
+	LCD_K, LCD_L, LCD_M, LCD_N, LCD_O, LCD_P, LCD_R, LCD_S, 
+	LCD_T, LCD_U, LCD_W, LCD_X, LCD_Y,
+	LCD_ap, LCD_in, LCD_he, LCD_fmj,
+	LCD_0, LCD_1, LCD_2, LCD_3, LCD_4,
+	LCD_5, LCD_6, LCD_7, LCD_8, LCD_9,
+	LCD_stripes, LCD_SMALLD, LCD_COLON, LCD_PERIOD, 
+	LCD_SPACE, LCD_END = 0xFF 
+} font_chars;
+
+// Fixme: this can be moved to progmem
+// Font character offsets and widths - FIXME should generate this at compile time from widths only.
+struct {
+	uint16_t start;
+	uint8_t width;
+} chars[] = {
+	// A C D E F
+	{0, 7}, {7, 6}, {13, 6}, {19, 5}, {24, 5},
+	// G H I K L
+	{29, 7}, {36, 6}, {42, 1}, {43, 6}, {49, 6},
+	// M N O P R
+	{55, 7}, {62, 6}, {68, 7}, {75, 5}, {80, 5},
+	// S T U W X Y
+	{85, 6}, {91, 5}, {96, 6}, {102, 7}, {109, 7}, {116, 7},
+	// ap in he fmj
+	{123, 9}, {132, 6}, {138, 10}, {148, 13},
+	// 0123456789
+	{161, 4}, {165, 4}, {169, 4}, {173, 4}, {177, 4}, 
+	{181, 4}, {185, 4}, {189, 4}, {193, 4}, {197, 4},
+	// stripes, small D, colon, period
+	{201, 15}, {216, 5}, {221 ,2}, {223, 2}
+};
+
+// FIXME move all the font stuff into its own file
+inline uint8_t get_charslice(uint8_t c, uint8_t pos)
+{
+	return pgm_read_byte(FONT_PTR + chars[c].start + pos);
+}
+
+// Example of text string
+const uint8_t string_dnacheck[] PROGMEM = {LCD_D, LCD_N, LCD_A, 
+	LCD_SPACE, LCD_C, LCD_H, LCD_E, LCD_C, LCD_K, LCD_END};
+
+void drawletter(uint8_t x, uint8_t y, uint8_t c)
+{
+	int i;
+
+	for (i = 0; i < chars[c].width; i++)
+	{
+		video_drawbits(x + i, y, get_charslice(c, i));
+	}
+}
+
+void drawstring(uint8_t x, uint8_t y, const uint8_t *str)
+{
+	uint8_t c = pgm_read_byte(str++);
+
+	while (c != LCD_END)
+	{
+		if (c == LCD_SPACE)
+		{
+			x += 3;
+		}
+		else
+		{
+	 		drawletter(x, y, c);
+			x += chars[c].width + 1;
+		}
+		c = pgm_read_byte(str++);
+	}
+}
 
 void delay(int time)
 {
@@ -32,54 +98,25 @@ void delay(int time)
 }
 
 
-void pin_setup() {
-	
+void setup() {
+	// Initialise the display hardware
+	ssd1306_init();
+	//init_clock();
 }
 
 int main()
 {
-	pin_setup();
+	setup();
 
-	/* Setup pin directions for LED display */
-	//DDRB = 0b01101110;
-
-	/* Initial condition for LED display */
-	//PORTB = _BV(PIN_RESET);
-
-	/* Setup SPI hardware */
-	//SPCR = _BV(SPE) | _BV(MSTR);
-	//SPSR = _BV(SPI2X);
-
-	/* Allow voltages to settle */
+  /* Allow voltages to settle */
 	delay(200);
 
-	/* Reset LED display */
-	//PORTB &= ~(_BV(PIN_RESET));
-	//delay(5);
-	//PORTB |= _BV(PIN_RESET);
+	//start_clock();
 
-	//display_spi(0xAF);
+	//video_vline(20, 20, 40, 1);
+	drawstring(20, 6, string_dnacheck);
 
-	/* Line on line 20 */
-
-	//int x, y;
-	//for (y = 0; y < 4; y++)
-	//{
-		/* Set PAGE address 2-7 */
-		//display_spi(0xB3 - y);
-
-		/* Start address (0) */
-		//display_spi(0x00);
-		//display_spi(0x10);
-
-		//for (x = 0; x < 132; x++)
-		//{
-			//uint8_t data = pgm_read_byte(LOGO_PTR + (x * 4) + y);
-			//display_data(~data);
-		//}
-
-		//delay(1000);
-	//}
+	ssd1306_update();
 
 	while (1)
 		;

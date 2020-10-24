@@ -5,7 +5,7 @@
 
 extern volatile uint32_t ticks, ticks_copy;
 
-void init_clock(unsigned int frequency);
+void init_clock();
 void start_clock();
 
 #endif

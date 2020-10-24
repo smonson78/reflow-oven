@@ -21,6 +21,7 @@ uint8_t spi_transfer(uint8_t send)
 	return SPDR;
 }
 
+#ifdef ENABLE_SPI_16BIT
 uint16_t spi_transfer16(uint16_t send)
 {
 	uint16_t result;
@@ -35,3 +36,4 @@ uint16_t spi_transfer16(uint16_t send)
 		;
 	return result | SPDR;
 }
+#endif
