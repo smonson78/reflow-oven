@@ -23,7 +23,7 @@ void setup() {
 }
 
 void print_num(uint8_t y, uint16_t num) {
-	uint8_t x = 30;
+	uint8_t x = 20;
 
 	for (int i = 0; i < 5; i++) {
 		uint8_t digit = num % 10;
@@ -31,7 +31,7 @@ void print_num(uint8_t y, uint16_t num) {
 
 		drawletter(x, y, LCD_0 + digit);
 
-		x -= 6;
+		x -= 5;
 	}
 }
 
@@ -47,15 +47,14 @@ int main()
 	//video_vline(20, 20, 40, 1);
 	drawstring(0, 0, string_test1);
 	drawstring(0, 9, string_test2);
-
-	ssd1306_update();
+	drawstring(0, 22, string_test3);
 
 	uint8_t count = 0;
 	while (1) {
 		uint16_t temp = max6675_read_raw();
-		video_rect(0, 18, 36, 18, 0);
-		print_num(18, temp);
-		print_num(18 + 9, count++);
+		video_rect(0, 38, 36, 19, 0);
+		print_num(38, temp);
+		print_num(49, count++);
 		ssd1306_update();
 
 		// at least 250mS between reads.

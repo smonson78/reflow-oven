@@ -22,8 +22,8 @@ struct {
 	// 0123456789
 	{153, 4}, {157, 4}, {161, 4}, {165, 4}, {169, 4}, 
 	{173, 4}, {177, 4}, {181, 4}, {185, 4}, {189, 4},
-  // degrees symbol
-  {193, 3}
+  // degrees, colon, period, comma
+  {193, 3}, {196, 1}, {197, 2}, {199, 2}
 };
 
 // FIXME move all the font stuff into its own file
@@ -41,6 +41,11 @@ const uint8_t string_test1[] PROGMEM = {
 const uint8_t string_test2[] PROGMEM = {
   LCD_T, LCD_U, LCD_V, LCD_W, LCD_X, LCD_Y, LCD_Z, LCD_0, LCD_1, LCD_2, LCD_3, LCD_4, LCD_5, LCD_6, 
   LCD_7, LCD_8, LCD_9, LCD_DEGREES, LCD_END
+};
+
+const uint8_t string_test3[] PROGMEM = {
+  LCD_V, LCD_A, LCD_L, LCD_U, LCD_E, LCD_COLON, LCD_SPACE, LCD_3, LCD_7, LCD_PERIOD, LCD_5, LCD_DEGREES, LCD_COMMA, 
+	LCD_SPACE, LCD_6, LCD_2, LCD_DEGREES, LCD_END
 };
 
 
