@@ -9,6 +9,8 @@ void max6675_init() {
 
   // Set CS high
   PORTC |= _BV(MAX6675_CS_PIN);
+
+  // SCK is low by default
 }
 
 uint16_t max6675_read_raw() {
@@ -22,8 +24,9 @@ uint16_t max6675_read_raw() {
 
   // 16 bits of data
   for (uint8_t i = 0; i < 16; i++) {
-    // Lower SCK
-    PORTC &= ~_BV(MAX6675_SCK_PIN);
+
+    // Raise SCK
+    PORTC |= _BV(MAX6675_SCK_PIN);
 
     // Move acc up one bit
     acc = acc << 1;
@@ -34,12 +37,10 @@ uint16_t max6675_read_raw() {
     // Sample data on the falling edge of SCK
     if (PINC & _BV(MAX6675_SO_PIN)) {
       acc |= 1;
-    } 
-    //acc |= (PINC & _BV(MAX6675_SO_PIN)) >> MAX6675_SO_PIN;
+    }    
 
-    // Raise SCK
-    PORTC |= _BV(MAX6675_SCK_PIN);
-
+    // Lower SCK
+    PORTC &= ~_BV(MAX6675_SCK_PIN);
 
     // 4 clock cycles at 16MHz is 250ns (datasheet: at least 100ns)
     _delay_loop_2(10);
@@ -48,5 +49,10 @@ uint16_t max6675_read_raw() {
   // Raise CS
   PORTC |= _BV(MAX6675_CS_PIN);
 
-  return acc; //(acc >> 3) & 0xfff; // 12 bit result
+  // Check for open thermocouple
+  if (acc & _BV(2)) {
+    return 0xffff;
+  }
+
+  return (acc >> 3) & 0xfff; // 12 bit result
 }
