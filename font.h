@@ -14,11 +14,6 @@ typedef enum {
 	LCD_SPACE, LCD_END = 0xFF 
 } font_chars_t;
 
-
-extern const uint8_t string_test1[] PROGMEM;
-extern const uint8_t string_test2[] PROGMEM;
-extern const uint8_t string_test3[] PROGMEM;
-
 void drawstring(uint8_t x, uint8_t y, const uint8_t *str);
 void drawletter(uint8_t x, uint8_t y, uint8_t c);
 

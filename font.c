@@ -32,6 +32,7 @@ inline uint8_t get_charslice(uint8_t c, uint8_t pos)
 	return pgm_read_byte(FONT_PTR + chars[c].start + pos);
 }
 
+/*
 // Example of text string
 const uint8_t string_test1[] PROGMEM = {
   LCD_A, LCD_B, LCD_C, LCD_D, LCD_E, LCD_F, LCD_G, LCD_H, LCD_I, LCD_J, LCD_K, LCD_L, LCD_M, 
@@ -47,7 +48,7 @@ const uint8_t string_test3[] PROGMEM = {
   LCD_V, LCD_A, LCD_L, LCD_U, LCD_E, LCD_COLON, LCD_SPACE, LCD_3, LCD_7, LCD_PERIOD, LCD_5, LCD_DEGREES, LCD_COMMA, 
 	LCD_SPACE, LCD_6, LCD_2, LCD_DEGREES, LCD_END
 };
-
+*/
 
 void drawletter(uint8_t x, uint8_t y, uint8_t c)
 {

@@ -2,12 +2,14 @@
 #include <avr/interrupt.h>
 
 #include "clock.h"
+#include "buttons.h"
 
 volatile uint32_t ticks = 0, ticks_copy;
 
 ISR(TIMER0_COMPA_vect)
 {
-	ticks++;	
+	ticks++;
+	read_buttons();
 }
 
 /* Maintain a timer */

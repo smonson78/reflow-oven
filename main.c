@@ -9,12 +9,16 @@
 #include <stdint.h>
 
 #include "clock.h"
-//#include "buttons.h"
+#include "buttons.h"
 #include "ssd1306.h"
 #include "max6675.h"
 #include "spi.h"
 #include "font.h"
 #include "adc.h"
+
+#define RELAY_DDR_REG DDRD
+#define RELAY_PIN_REG PIND
+#define RELAY_PIN 2
 
 void setup() {
 	// Initialise the display hardware
@@ -22,6 +26,12 @@ void setup() {
 	init_clock();
 	max6675_init();
 	//adc_init();
+
+	// User buttons pull-ups
+	PORTC |= _BV(BUTTON_1_PIN) | _BV(BUTTON_2_PIN) | _BV(BUTTON_2_PIN);
+
+	// Relay actuator pin
+	RELAY_DDR_REG |= _BV(2);
 }
 
 void print_num(uint8_t x, uint8_t y, uint16_t num, uint8_t digits, uint8_t leading_zeros) {
@@ -30,13 +40,23 @@ void print_num(uint8_t x, uint8_t y, uint16_t num, uint8_t digits, uint8_t leadi
 	for (int i = 0; i < digits; i++) {
 		uint8_t digit = num % 10;
 		num /= 10;
-		if (num != 0 || digit != 0 || leading_zeros) {
+		if (num != 0 || digit != 0 || leading_zeros || i == 0) {
 			drawletter(x_coord, y, LCD_0 + digit);
 		}
 
 		x_coord -= 5;
 	}
 }
+
+const uint8_t oven_string[] PROGMEM = {
+  LCD_O, LCD_V, LCD_E, LCD_N, LCD_COLON, LCD_END
+};
+
+const uint8_t heat_string[] PROGMEM = {
+  LCD_H, LCD_E, LCD_A, LCD_T, LCD_SPACE, LCD_O, LCD_N, LCD_END
+};
+
+uint8_t heating = 0;
 
 int main()
 {
@@ -48,9 +68,6 @@ int main()
 	start_clock();
 
 	//video_vline(20, 20, 40, 1);
-	drawstring(0, 0, string_test1);
-	drawstring(0, 9, string_test2);
-	drawstring(0, 22, string_test3);
 
 	uint8_t count = 0;
 	while (1) {
@@ -77,17 +94,53 @@ int main()
 		top /= ts_gain;
 		top += 25;
 */
-		video_rect(0, 38, 128, 19, 0);
-		print_num(0, 38, temp / 4, 5, 0);
-		drawletter(25, 38, LCD_PERIOD);
-		print_num(28, 38, 25 * (temp % 4), 2, 1);
-		drawletter(38, 38, LCD_DEGREES);
-		drawletter(42, 38, LCD_C);
+
+		// Clip temperature to displayable value 999.75
+		if (temp > 3999) {
+			temp = 3999;
+		}
+
+		// Redraw screen --------------------------------
+		
+		// Clear everything
+		video_rect(0, 0, 128, 64, 0);
+
+		drawstring(0, 0, oven_string);
+		print_num(31, 0, temp / 4, 3, 0);
+		drawletter(31 + 15, 0, LCD_PERIOD);
+		print_num(31 + 18, 0, 25 * (temp % 4), 2, 1);
+		drawletter(31 + 28, 0, LCD_DEGREES);
+		drawletter(31 + 32, 0, LCD_C);
+
+		video_hline(0, 9, 128, 1);
+
+		if (heating) {
+			drawstring(0, 11, heat_string);
+		}
+
+
 		print_num(0, 49, count++, 5, 0);
+
+		drawletter(64, 38, button_flags & BUTTON_1 ? LCD_O : LCD_PERIOD);
+		drawletter(64 + 10, 38, button_flags & BUTTON_2 ? LCD_O : LCD_PERIOD);
+		drawletter(64 + 20, 38, button_flags & BUTTON_3 ? LCD_O : LCD_PERIOD);
+
+		// Start
+		if (test_button(BUTTON_1, 0)) {
+			heating = 1;
+			RELAY_PIN_REG |= _BV(RELAY_PIN);
+		}
+
+		// Stop
+		if (test_button(BUTTON_2, 1)) {
+			heating = 0;
+			RELAY_PIN_REG &= ~_BV(RELAY_PIN);
+		}
+
 		ssd1306_update();
 
 		// at least 250mS between reads.
-		_delay_ms(500);
+		_delay_ms(100);
 	};
 
 	return 0;
