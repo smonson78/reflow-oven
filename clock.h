@@ -3,9 +3,10 @@
 
 #include <stdint.h>
 
-extern volatile uint32_t ticks, ticks_copy;
+extern volatile uint32_t ticks;
 
 void init_clock();
 void start_clock();
+void clear_clock();
 
 #endif

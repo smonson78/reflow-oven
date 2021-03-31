@@ -4,7 +4,6 @@
 #include <avr/io.h>
 
 #define DEBOUNCE_DELAY		5
-#define BUTTON_PORT	PORTC
 #define BUTTON_PINREG	PINC
 #define BUTTON_1_PIN	0
 #define BUTTON_2_PIN	1

@@ -4,7 +4,7 @@
 #include "clock.h"
 #include "buttons.h"
 
-volatile uint32_t ticks = 0, ticks_copy;
+volatile uint32_t ticks = 0;
 
 ISR(TIMER0_COMPA_vect)
 {
@@ -36,3 +36,8 @@ void start_clock()
 	TIMSK0 |= _BV(1);
 }
 
+void clear_clock() {
+	cli();
+	ticks = 0;
+	sei();
+}

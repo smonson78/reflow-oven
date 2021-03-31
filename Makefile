@@ -44,3 +44,12 @@ fuses:
 
 clean:
 	$(RM) *.o *.elf *.hex
+
+info: $(TARGET).elf
+	@m68k-elf-objdump -h toaster.elf -j .text -j .data -j .bss | \
+		sed -e "s/^... \.text\s*0*\([^ ]*\).*/Code size: 0x\1 of 0x8012/ p; \
+		s/^... \.data\s*0*\([^ ]*\).*/Data size: 0x\1 of 0x8012/ p; \
+		s/^... \.bss\s*0*\([^ ]*\).*/RAM use: 0x\1 of 0x800/ p; \
+		d"
+
+

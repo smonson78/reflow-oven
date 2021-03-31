@@ -17,7 +17,7 @@
 #include "adc.h"
 
 #define RELAY_DDR_REG DDRD
-#define RELAY_PIN_REG PIND
+#define RELAY_PORT_REG PORTD
 #define RELAY_PIN 2
 
 void setup() {
@@ -25,7 +25,7 @@ void setup() {
 	ssd1306_init();
 	init_clock();
 	max6675_init();
-	//adc_init();
+	adc_init();
 
 	// User buttons pull-ups
 	PORTC |= _BV(BUTTON_1_PIN) | _BV(BUTTON_2_PIN) | _BV(BUTTON_2_PIN);
@@ -72,28 +72,8 @@ int main()
 	uint8_t count = 0;
 	while (1) {
 		uint16_t temp = max6675_read_raw();
-		//uint16_t temp = adc_read(8); // Internal temperature sensor
-		
 
-		// Contents of the signature bytes:
-		//  0  1  2  3  4  5  6  7  8  9
-		// 1e a2 95 ff 0f cc ff 26 ff 08
-		// ^^    ^^    ^^                 device signature
-		//    ^^                          RC calibration
-		//       ^^                       temp sensor offset apparently??? clearly wrong since that's signature byte 2
-		//          ^^                    temp sensor gain - also clearly wrong as it's 0xff
-
-		// (adc - (273 + 100 - ts_offset)) * 128
-
-		// Guess: TS_OFFSET is supposed to be address 9 and TS_GAIN is supposed to be offset 5.
-/*
-		int8_t ts_offset = boot_signature_byte_get(9);
-		uint8_t ts_gain = boot_signature_byte_get(5);
-		int16_t top = temp - (373 - ts_offset);
-		top *= 128;
-		top /= ts_gain;
-		top += 25;
-*/
+		uint16_t temp2 = adc_read(8); // Internal temperature sensor
 
 		// Clip temperature to displayable value 999.75
 		if (temp > 3999) {
@@ -105,6 +85,7 @@ int main()
 		// Clear everything
 		video_rect(0, 0, 128, 64, 0);
 
+		// Oven temperature
 		drawstring(0, 0, oven_string);
 		print_num(31, 0, temp / 4, 3, 0);
 		drawletter(31 + 15, 0, LCD_PERIOD);
@@ -112,34 +93,54 @@ int main()
 		drawletter(31 + 28, 0, LCD_DEGREES);
 		drawletter(31 + 32, 0, LCD_C);
 
+		// AVR internal core temperature sensor
+		print_num(74, 0, temp2, 3, 0);
+		drawletter(74 + 15, 0, LCD_DEGREES);
+		drawletter(74 + 19, 0, LCD_C);
+
 		video_hline(0, 9, 128, 1);
 
 		if (heating) {
 			drawstring(0, 11, heat_string);
-		}
 
+		  // Draw the heating time
+			cli();
+			// Get the 125Hz clock
+			uint32_t ticks_copy = ticks;
+			sei();
+			ticks_copy /= 125;
+			print_num(105, 0, ticks_copy / 60, 2, 0);
+			drawletter(115, 0, LCD_COLON);
+			print_num(118, 0, ticks_copy % 60, 2, 1);
+		}
 
 		print_num(0, 49, count++, 5, 0);
 
+		// Simulated buttons
 		drawletter(64, 38, button_flags & BUTTON_1 ? LCD_O : LCD_PERIOD);
 		drawletter(64 + 10, 38, button_flags & BUTTON_2 ? LCD_O : LCD_PERIOD);
-		drawletter(64 + 20, 38, button_flags & BUTTON_3 ? LCD_O : LCD_PERIOD);
+		// drawletter(64 + 20, 38, button_flags & BUTTON_3 ? LCD_O : LCD_PERIOD);
 
+		ssd1306_update();
+
+		// Handle events --------------------------------
+
+		// TODO: this is better as a toggle on/off
 		// Start
 		if (test_button(BUTTON_1, 0)) {
 			heating = 1;
-			RELAY_PIN_REG |= _BV(RELAY_PIN);
+			RELAY_PORT_REG |= _BV(RELAY_PIN);
+			clear_clock();
 		}
 
 		// Stop
 		if (test_button(BUTTON_2, 1)) {
 			heating = 0;
-			RELAY_PIN_REG &= ~_BV(RELAY_PIN);
+			RELAY_PORT_REG &= ~_BV(RELAY_PIN);
 		}
 
-		ssd1306_update();
 
-		// at least 250mS between reads.
+		// No need to update the screen all that often.
 		_delay_ms(100);
 	};
 
