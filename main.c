@@ -74,6 +74,7 @@ int main()
 		uint16_t temp = max6675_read_raw();
 
 		uint16_t temp2 = adc_read(8); // Internal temperature sensor
+		temp2 -= 345;
 
 		// Clip temperature to displayable value 999.75
 		if (temp > 3999) {
@@ -103,7 +104,7 @@ int main()
 		if (heating) {
 			drawstring(0, 11, heat_string);
 
-		  // Draw the heating time
+		  	// Draw the heating time
 			cli();
 			// Get the 125Hz clock
 			uint32_t ticks_copy = ticks;
@@ -141,7 +142,7 @@ int main()
 
 
 		// No need to update the screen all that often.
-		_delay_ms(100);
+		_delay_ms(500);
 	};
 
 	return 0;
