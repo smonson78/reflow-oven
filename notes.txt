@@ -1,0 +1,46 @@
+Cooldown test:
+    100C -> 91.5C in 60s with door closed (8.5C)
+    80C -> 60C in 90s with door open (20C)
+
+Heating overshoot test:
+  Without adjustment:
+    8s: 10C (1.25C/s)
+    22s: 25C (...1.07C/s)
+    36s: 35C (...0.71C/s)
+    44s: 40C (...0.625C/s)
+    66s: 50C (...0.83C/s)
+    98s: 57C (...0.68C/s)
+    120s: 59C (...0.09C/s)
+
+  With adjustments for cooling rate:
+    8s: 10C (1.25 + 0.14 = 1.39C/s)
+    22s: 25C (...1.07 + 0.14 = 1.21C/s)
+    36s: 35C (...0.71 + 0.14 = 0.85C/s)
+    44s: 40C (...0.625 + 0.14 = 0.76C/s)
+    66s: 50C (...0.83 + 0.14 = 0.97C/s)
+    98s: 57C (...0.68 + 0.14 = 0.82C/s)
+    120s: 59C (...0.09 + 0.14 = 0.23C/s)
+
+10s heating test:
+1:
+    Start: 60C
+    After 60s: 68.25C + 8.5C cooling = 76.75C
+    After 120s: 71.5C + 17C cooling = 88.5C
+
+    Total heat energy: 28.5C
+2: 
+    Start: 71.5C
+    After 60s: 78.5 + 8.5 = 87C
+    After 120s: 80.5 + 17 = 97.5C
+
+    Total heat energy: 26C
+3:
+    Start: 80C
+    After 60s: 84.5 + 8.5s = 93C
+    After 120s: 85 + 17 = 102C
+
+    Total heat energy: 22C
+
+
+
+
