@@ -1,6 +1,22 @@
-Cooldown test:
-    100C -> 91.5C in 60s with door closed (8.5C)
+Cooldown test 60s:
+    70C (45 above ambient) -> 66C (4C or 0.088)
+      Rewritten as average 68 = 43 above ambient = 0.093
+    91C (66 above ambient) -> 84C (5C or 0.075)
+      Rewritten as average 88.5 = 63.5 above ambient = 0.078
+    100C (75 above ambient) -> 91.5C (8.5C or 0.11)
+      Rewritten as average 95.75 = 70.75 above ambient = 0.12
+    139C (114 above ambient) -> 127.5C (11.5C or 0.1)
+      Rewritten as average 133.25 = 108.25 above ambient = 0.10
+    193C (168 above ambient) -> 172C (21C or 0.125)
+      Rewritten as average 182.5 = 157.5 above ambient = 0.133
+
+    Average: 0.104 per 60s = 0.001746667 per second
+
+
+
+
     80C -> 60C in 90s with door open (20C)
+
 
 Heating overshoot test:
   Without adjustment:
@@ -40,6 +56,30 @@ Heating overshoot test:
     After 120s: 85 + 17 = 102C
 
     Total heat energy: 22C
+
+30s heating test:
+1:
+    Start: 24.5C
+    After 30s: 46C
+    After 60s: 59.5C
+    After 90s: 65C
+    After 120s: 70C
+2:
+    Start: 64C
+    After 0s: 68C
+    After 30s: 82C
+    After 60s: 92C
+    After 90s: 96C
+    After 120s: 98C
+
+
+50s heating test:
+    Start: 81C
+    After 30s: 127C
+    After 60s: 139C
+    After 90s: 142C
+    After 120s: 140C
+
 
 
 

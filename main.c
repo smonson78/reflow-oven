@@ -6,7 +6,9 @@
 
 #include <util/delay_basic.h>
 #include <util/delay.h>
+
 #include <stdint.h>
+#include <string.h>
 
 #include "clock.h"
 #include "buttons.h"
@@ -68,6 +70,10 @@ const uint8_t quanta_string[] PROGMEM = {
   LCD_Q, LCD_U, LCD_A, LCD_N, LCD_T, LCD_A, LCD_END
 };
 
+const uint8_t hunj_string[] PROGMEM = {
+  LCD_1, LCD_0, LCD_0, LCD_DEGREES, LCD_END
+};
+
 uint32_t read_clock() {
 	cli();
 	uint32_t result = ticks;
@@ -75,8 +81,32 @@ uint32_t read_clock() {
 	return result;
 }
 
+// Oven temperature and AVR core temp
+uint16_t temp = 0;
+uint16_t temp2 = 0;
+
+//typedef struct {
+//	uint16_t temperature;
+//	uint8_t heat;
+//} temp_history_t;
+
+typedef uint16_t temp_history_t;
+
+// Temperature history FIFO, 120s
+temp_history_t temp_history[60];
+uint8_t temp_history_start = 0;
+uint32_t next_temp_history_unit;
+
 void heat_on() {
+	// Turn on heater pin
 	RELAY_PORT_REG |= _BV(RELAY_PIN);
+
+	// Reset the temperature FIFO
+	memset(temp_history, 0, sizeof(temp_history));
+	temp_history_start = 0;
+
+	// This will cause the first temperature unit to be stored immediately
+	next_temp_history_unit = 0;
 }
 
 void heat_off() {
@@ -102,11 +132,8 @@ int main()
 	enum {
 		MODE_TOGGLE,
 		MODE_QUANTA,
+		MODE_HUNJ,
 	} mode = MODE_TOGGLE;
-
-	// Oven temperature and AVR core temp
-	uint16_t temp = 0;
-	uint16_t temp2 = 0;
 
 	// When to next refresh the temperature
 	uint32_t next_temp = 0;
@@ -116,6 +143,8 @@ int main()
 
 	// Quanta end time
 	uint32_t quanta_end;
+
+	memset(temp_history, 0, sizeof(temp_history));
 
 	// Main loop
 	while (1) {
@@ -179,7 +208,7 @@ int main()
 
 			ssd1306_update();
 
-			// Read the temperature again in the future
+			// Update the display again in the future
 			next_redraw = time + 25;
 		}
 
@@ -210,12 +239,28 @@ int main()
 				heating = 0;
 				clock_base = time;
 			}
+		} else if (mode == MODE_HUNJ) {
+			// Heat up to 100 degrees
+			if (test_button(BUTTON_1, 0) && heating == 0) {
+				heat_on();
+				heating = 1;
+				clock_base = time;
+				quanta_end = time + (125 * 80);
+			}
+
+			if (heating && quanta_end <= time) {
+				heat_off();
+				heating = 0;
+				clock_base = time;
+			}
 		}
 
 		// MODE button
 		if (test_button(BUTTON_2, 1)) {
 			if (mode == MODE_TOGGLE) {
 				mode = MODE_QUANTA;
+			} else if (mode == MODE_QUANTA) {
+				mode = MODE_HUNJ;
 			} else {
 				mode = MODE_TOGGLE;
 			}

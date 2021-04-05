@@ -52,4 +52,5 @@ info: $(TARGET).elf
 		s/^... \.bss\s*0*\([^ ]*\).*/RAM use: 0x\1 of 0x800/ p; \
 		d"
 
-
+predict_test: predict_test.c predict.c predict.h
+	gcc -o predict_test predict_test.c predict.c
