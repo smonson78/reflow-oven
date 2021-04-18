@@ -113,6 +113,8 @@ void heat_off() {
 	RELAY_PORT_REG &= ~_BV(RELAY_PIN);
 }
 
+uint8_t follow = 0;
+
 int main()
 {
 	setup();
@@ -191,7 +193,7 @@ int main()
 			video_hline(0, 9, 128, 1);
 
 			if (heating) {
-				drawstring(100, 11, heat_string);
+				drawstring(84, 11, heat_string);
 			}
 
 			// Mode
@@ -206,23 +208,24 @@ int main()
 			video_hline(0, 29, 128, 1);
 
 			// Find the total time of profile1
-			uint16_t total_time = temp_profile_time[temp_profile_stages];
+			uint16_t total_time = temp_profile_time[temp_profile_stages - 1];
 
 			// Draw the profile graph with a series of vertical lines representing the temperature
 			for (uint8_t i = 0; i < 128; i++) {
+				
 				// Find the number of seconds into the profile we are
-				uint32_t proportion = total_time * i;
+				uint16_t proportion = total_time * i;
 				proportion /= 128;
 
 				// Which stage of the temperature profile is that?
 				uint8_t stage = 0;
-				while (proportion < temp_profile_time[stage]) {
+				while (stage < temp_profile_stages - 1 && proportion >= temp_profile_time[stage + 1]) {
 					stage++;
 				}
 
 				// What's the target temperature at that point?
 				uint8_t start_degrees = 0;
-				uint8_t stop_degrees = 0;
+				uint8_t stop_degrees;
 				start_degrees = temp_profile[stage];
 				if (stage < temp_profile_stages) {
 					stop_degrees = temp_profile[stage + 1];
@@ -233,7 +236,7 @@ int main()
 				// Get the number of seconds in this stage
 				uint16_t stage_time = temp_profile_time[stage == temp_profile_stages ? stage : stage + 1];
 				stage_time -= temp_profile_time[stage];
-
+			
 				// Find the proportional target temperature
 				uint16_t stage_proportion = proportion - temp_profile_time[stage];
 				stage_proportion *= 100;
@@ -244,15 +247,29 @@ int main()
 
 				// Find the temp
 				uint16_t target_temp = stop_degrees - start_degrees;
-				target_temp *= 100;
-				target_temp /= stage_proportion;
+				target_temp *= stage_proportion;
+				target_temp /= 100;
+				target_temp += start_degrees;
 				
 				uint16_t line_height = target_temp * 100;
 				line_height /= (25000 / 33); // get it into the range of 0-33 for drawing
 
-				video_vline(i, 30 + (33 - line_height), line_height, 1);
+				//line_height = stage * 4;
+				if (line_height < 33) {
+					video_vline(i, 30 + (33 - line_height), line_height, 1);
+				}
 			}
 
+			if (follow) {
+				uint32_t ticks_copy = read_clock();
+				ticks_copy -= clock_base;
+				ticks_copy /= 125;
+
+				if (ticks_copy < 128) {
+					video_vline(ticks_copy, 30, 33, 1);
+				}
+
+			}
 
 			ssd1306_update();
 
@@ -272,6 +289,17 @@ int main()
 					heat_off();
 				}
 				clock_base = time;
+			}
+		} else if (mode == MODE_PROFILE1) {
+			if (test_button(BUTTON_1, 0)) {
+				if (follow == 0) {
+					// Start the reflow profile
+					clock_base = time;
+				follow = 1;
+				} else {
+					follow = 0;
+					clock_base = time;
+				}
 			}
 		}
 
