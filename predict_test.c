@@ -55,6 +55,20 @@ int main(int argc, void **argv) {
     printf("  After %d seconds, temp = %.1f C\n", second, future_temp);
   }
 
+  printf("\n==== 80s burn scenario from 25C to 150C (92 -> 150C)\n");
+  memset(temp_history, 0, sizeof(temp_history));
+  // All of history is 60s
+  for (int i = 0; i < 60; i++) {
+    temp_history[i] = 1;
+  }
+  temp_history_start = 60;
+
+  current_temp = 92 * 4;
+  for (int second = 0; second <= total_seconds; second += 30) {
+    float future_temp = predict_future_temp(current_temp, second, temp_history, temp_history_start);
+    printf("  After %d seconds, temp = %.1f C\n", second, future_temp);
+  }
+
   printf("\n==== 100C scenario 1 (25 -> 100C)\n");
   memset(temp_history, 0, sizeof(temp_history));
   for (int i = 0; i < 1; i++) {

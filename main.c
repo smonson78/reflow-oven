@@ -22,6 +22,10 @@
 #define RELAY_PORT_REG PORTD
 #define RELAY_PIN 2
 
+const uint8_t temp_profile[] = {25, 100, 150, 183, 235, 183};
+const uint16_t temp_profile_time[] = {0, 30, 120, 150, 210, 240};
+const uint8_t temp_profile_stages = 6;
+
 void setup() {
 	// Initialise the display hardware
 	ssd1306_init();
@@ -66,12 +70,8 @@ const uint8_t toggle_string[] PROGMEM = {
   LCD_T, LCD_O, LCD_G, LCD_G, LCD_L, LCD_E, LCD_END
 };
 
-const uint8_t quanta_string[] PROGMEM = {
-  LCD_Q, LCD_U, LCD_A, LCD_N, LCD_T, LCD_A, LCD_END
-};
-
-const uint8_t hunj_string[] PROGMEM = {
-  LCD_1, LCD_0, LCD_0, LCD_DEGREES, LCD_END
+const uint8_t profile1_string[] PROGMEM = {
+  LCD_P, LCD_R, LCD_O, LCD_F, LCD_I, LCD_L, LCD_E, LCD_SPACE, LCD_1, LCD_END
 };
 
 uint32_t read_clock() {
@@ -131,8 +131,7 @@ int main()
 	// UI mode
 	enum {
 		MODE_TOGGLE,
-		MODE_QUANTA,
-		MODE_HUNJ,
+		MODE_PROFILE1
 	} mode = MODE_TOGGLE;
 
 	// When to next refresh the temperature
@@ -140,9 +139,6 @@ int main()
 
 	// When to next redraw the screen
 	uint32_t next_redraw = 0;
-
-	// Quanta end time
-	uint32_t quanta_end;
 
 	memset(temp_history, 0, sizeof(temp_history));
 
@@ -179,24 +175,10 @@ int main()
 			drawletter(31 + 28, 0, LCD_DEGREES);
 			drawletter(31 + 32, 0, LCD_C);
 
-			// Mode
-			drawstring(0, 24, mode_string);
-			if (mode == MODE_TOGGLE) {
-				drawstring(32, 24, toggle_string);
-			} else if (mode == MODE_QUANTA) {
-				drawstring(32, 24, quanta_string);
-			}
-
 			// AVR internal core temperature sensor
 			print_num(74, 0, temp2, 3, 0);
 			drawletter(74 + 15, 0, LCD_DEGREES);
 			drawletter(74 + 19, 0, LCD_C);
-
-			video_hline(0, 9, 128, 1);
-
-			if (heating) {
-				drawstring(0, 11, heat_string);
-			}
 
 			// Draw the heating/cooling time
 			uint32_t ticks_copy = read_clock();
@@ -205,6 +187,72 @@ int main()
 			print_num(105, 0, ticks_copy / 60, 2, 0);
 			drawletter(115, 0, LCD_COLON);
 			print_num(118, 0, ticks_copy % 60, 2, 1);
+
+			video_hline(0, 9, 128, 1);
+
+			if (heating) {
+				drawstring(100, 11, heat_string);
+			}
+
+			// Mode
+			drawstring(0, 11, mode_string);
+			if (mode == MODE_TOGGLE) {
+				drawstring(32, 11, toggle_string);
+			} else if (mode == MODE_PROFILE1) {
+				drawstring(32, 11, profile1_string);
+			}
+
+			// The line over the graph
+			video_hline(0, 29, 128, 1);
+
+			// Find the total time of profile1
+			uint16_t total_time = temp_profile_time[temp_profile_stages];
+
+			// Draw the profile graph with a series of vertical lines representing the temperature
+			for (uint8_t i = 0; i < 128; i++) {
+				// Find the number of seconds into the profile we are
+				uint32_t proportion = total_time * i;
+				proportion /= 128;
+
+				// Which stage of the temperature profile is that?
+				uint8_t stage = 0;
+				while (proportion < temp_profile_time[stage]) {
+					stage++;
+				}
+
+				// What's the target temperature at that point?
+				uint8_t start_degrees = 0;
+				uint8_t stop_degrees = 0;
+				start_degrees = temp_profile[stage];
+				if (stage < temp_profile_stages) {
+					stop_degrees = temp_profile[stage + 1];
+				} else {
+					stop_degrees = 0;
+				}
+				
+				// Get the number of seconds in this stage
+				uint16_t stage_time = temp_profile_time[stage == temp_profile_stages ? stage : stage + 1];
+				stage_time -= temp_profile_time[stage];
+
+				// Find the proportional target temperature
+				uint16_t stage_proportion = proportion - temp_profile_time[stage];
+				stage_proportion *= 100;
+				if (stage_time > 0) {
+					stage_proportion /= stage_time;
+				}
+				// stage_proportion is now the percentage of the way through the stage
+
+				// Find the temp
+				uint16_t target_temp = stop_degrees - start_degrees;
+				target_temp *= 100;
+				target_temp /= stage_proportion;
+				
+				uint16_t line_height = target_temp * 100;
+				line_height /= (25000 / 33); // get it into the range of 0-33 for drawing
+
+				video_vline(i, 30 + (33 - line_height), line_height, 1);
+			}
+
 
 			ssd1306_update();
 
@@ -225,42 +273,12 @@ int main()
 				}
 				clock_base = time;
 			}
-		} else if (mode == MODE_QUANTA) {
-			// 30s heater "burn"
-			if (test_button(BUTTON_1, 0) && heating == 0) {
-				heat_on();
-				heating = 1;
-				clock_base = time;
-				quanta_end = time + (125 * 30);
-			}
-
-			if (heating && quanta_end <= time) {
-				heat_off();
-				heating = 0;
-				clock_base = time;
-			}
-		} else if (mode == MODE_HUNJ) {
-			// Heat up to 100 degrees
-			if (test_button(BUTTON_1, 0) && heating == 0) {
-				heat_on();
-				heating = 1;
-				clock_base = time;
-				quanta_end = time + (125 * 80);
-			}
-
-			if (heating && quanta_end <= time) {
-				heat_off();
-				heating = 0;
-				clock_base = time;
-			}
 		}
 
 		// MODE button
 		if (test_button(BUTTON_2, 1)) {
 			if (mode == MODE_TOGGLE) {
-				mode = MODE_QUANTA;
-			} else if (mode == MODE_QUANTA) {
-				mode = MODE_HUNJ;
+				mode = MODE_PROFILE1;
 			} else {
 				mode = MODE_TOGGLE;
 			}

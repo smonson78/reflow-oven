@@ -57,8 +57,8 @@ float predict_future_temp(int temp, int seconds, uint16_t *temp_history, uint8_t
       heat_applied *= heat_per_unit;
 
       acc += heat_applied;
-      printf("  - heat from -%dU will be %.2fC %ds in the future\n", 
-        i, heat_applied, seconds);
+      //printf("  - heat from -%dU will be %.2fC %ds in the future\n", 
+      //  i, heat_applied, seconds);
 		}
 	}
 
