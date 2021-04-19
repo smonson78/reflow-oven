@@ -24,7 +24,13 @@
 
 const uint8_t temp_profile[] = {25, 100, 150, 183, 235, 183};
 const uint16_t temp_profile_time[] = {0, 30, 120, 150, 210, 240};
-const uint8_t temp_profile_stages = 6;
+#define temp_profile_stages 6
+
+// Heating on or off
+uint8_t heating = 0;
+
+// Find the total time of profile1
+uint16_t total_time;
 
 void setup() {
 	// Initialise the display hardware
@@ -107,13 +113,63 @@ void heat_on() {
 
 	// This will cause the first temperature unit to be stored immediately
 	next_temp_history_unit = 0;
+	heating = 1;
 }
 
 void heat_off() {
 	RELAY_PORT_REG &= ~_BV(RELAY_PIN);
+	heating = 0;
 }
 
+// Foolow temperature profile on/off
 uint8_t follow = 0;
+
+uint8_t temp_at_position(uint16_t second) {
+
+	// Which stage of the temperature profile is that?
+	uint8_t stage = 0;
+	while (stage < temp_profile_stages - 1 && second >= temp_profile_time[stage + 1]) {
+		stage++;
+	}
+
+	// What's the target temperature at that point?
+	uint8_t start_degrees = 0;
+	uint8_t stop_degrees;
+	start_degrees = temp_profile[stage];
+	if (stage < temp_profile_stages) {
+		stop_degrees = temp_profile[stage + 1];
+	} else {
+		stop_degrees = 0;
+	}
+	
+	// Get the number of seconds in this stage
+	uint16_t stage_time = temp_profile_time[stage == temp_profile_stages ? stage : stage + 1];
+	stage_time -= temp_profile_time[stage];
+
+	// Find the proportional target temperature
+	uint16_t stage_proportion = second - temp_profile_time[stage];
+	stage_proportion *= 100;
+	if (stage_time > 0) {
+		stage_proportion /= stage_time;
+	}
+	// stage_proportion is now the percentage of the way through the stage
+
+	// Find the temp
+	uint16_t target_temp = stop_degrees - start_degrees;
+	target_temp *= stage_proportion;
+	target_temp /= 100;
+	target_temp += start_degrees;
+	return target_temp;
+}
+
+void draw_graph_slice(uint8_t x, uint8_t temp) {
+	uint16_t line_height = temp * 100;
+	line_height /= (25000 / 33); // get it into the range of 0-33 for drawing
+
+	if (line_height < 33) {
+		video_vline(x, 30 + (33 - line_height), line_height, 1);
+	}
+}
 
 int main()
 {
@@ -122,10 +178,9 @@ int main()
   /* Allow voltages to settle */
 	_delay_ms(200);
 
-	start_clock();
+	total_time = temp_profile_time[temp_profile_stages - 1];
 
-	// Heating on or off
-	uint8_t heating = 0;
+	start_clock();
 
 	// This is the 0 point for displayed time.
 	uint32_t clock_base = 0;
@@ -147,6 +202,7 @@ int main()
 	// Main loop
 	while (1) {
 		uint32_t time = read_clock();
+		uint32_t op_seconds = (time - clock_base) / 125;
 
 		// Refresh the temperatures
 		if (next_temp <= time) {
@@ -162,6 +218,23 @@ int main()
 
 			// Read the temperature again in the future
 			next_temp = time + 50;
+		}
+
+		// Do oven logic if profile is running
+		if (follow) {
+			uint16_t target_temp = temp_at_position(op_seconds);
+
+			if (!heating && temp < target_temp - 2) {
+				heat_on();
+			} else if (heating && temp > target_temp) {
+				heat_off();
+			}
+
+			// End the profile once time has elapsed
+			if (op_seconds >= total_time) {
+				follow = 0;
+				heat_off();
+			}
 		}
 
 		// Redraw screen --------------------------------
@@ -183,12 +256,9 @@ int main()
 			drawletter(74 + 19, 0, LCD_C);
 
 			// Draw the heating/cooling time
-			uint32_t ticks_copy = read_clock();
-			ticks_copy -= clock_base;
-			ticks_copy /= 125;
-			print_num(105, 0, ticks_copy / 60, 2, 0);
+			print_num(105, 0, op_seconds / 60, 2, 0);
 			drawletter(115, 0, LCD_COLON);
-			print_num(118, 0, ticks_copy % 60, 2, 1);
+			print_num(118, 0, op_seconds % 60, 2, 1);
 
 			video_hline(0, 9, 128, 1);
 
@@ -207,68 +277,22 @@ int main()
 			// The line over the graph
 			video_hline(0, 29, 128, 1);
 
-			// Find the total time of profile1
-			uint16_t total_time = temp_profile_time[temp_profile_stages - 1];
-
 			// Draw the profile graph with a series of vertical lines representing the temperature
 			for (uint8_t i = 0; i < 128; i++) {
 				
 				// Find the number of seconds into the profile we are
 				uint16_t proportion = total_time * i;
 				proportion /= 128;
-
-				// Which stage of the temperature profile is that?
-				uint8_t stage = 0;
-				while (stage < temp_profile_stages - 1 && proportion >= temp_profile_time[stage + 1]) {
-					stage++;
-				}
-
-				// What's the target temperature at that point?
-				uint8_t start_degrees = 0;
-				uint8_t stop_degrees;
-				start_degrees = temp_profile[stage];
-				if (stage < temp_profile_stages) {
-					stop_degrees = temp_profile[stage + 1];
-				} else {
-					stop_degrees = 0;
-				}
 				
-				// Get the number of seconds in this stage
-				uint16_t stage_time = temp_profile_time[stage == temp_profile_stages ? stage : stage + 1];
-				stage_time -= temp_profile_time[stage];
-			
-				// Find the proportional target temperature
-				uint16_t stage_proportion = proportion - temp_profile_time[stage];
-				stage_proportion *= 100;
-				if (stage_time > 0) {
-					stage_proportion /= stage_time;
-				}
-				// stage_proportion is now the percentage of the way through the stage
-
-				// Find the temp
-				uint16_t target_temp = stop_degrees - start_degrees;
-				target_temp *= stage_proportion;
-				target_temp /= 100;
-				target_temp += start_degrees;
-				
-				uint16_t line_height = target_temp * 100;
-				line_height /= (25000 / 33); // get it into the range of 0-33 for drawing
-
-				//line_height = stage * 4;
-				if (line_height < 33) {
-					video_vline(i, 30 + (33 - line_height), line_height, 1);
-				}
+				draw_graph_slice(i, temp_at_position(proportion));
 			}
 
+			// Draw current-time line on graph if profile is running
 			if (follow) {
-				uint32_t ticks_copy = read_clock();
-				ticks_copy -= clock_base;
-				ticks_copy /= 125;
-
-				if (ticks_copy < 128) {
-					video_vline(ticks_copy, 30, 33, 1);
+				uint16_t x = (op_seconds * 128) / total_time;
+				if (x < 128) {
+					video_vline(x, 30, 33, 1);
 				}
-
 			}
 
 			ssd1306_update();
