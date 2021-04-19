@@ -203,6 +203,7 @@ int main()
 	while (1) {
 		uint32_t time = read_clock();
 		uint32_t op_seconds = (time - clock_base) / 125;
+		uint16_t target_temp = temp_at_position(op_seconds);
 
 		// Refresh the temperatures
 		if (next_temp <= time) {
@@ -222,11 +223,10 @@ int main()
 
 		// Do oven logic if profile is running
 		if (follow) {
-			uint16_t target_temp = temp_at_position(op_seconds);
 
-			if (!heating && temp < target_temp - 2) {
+			if (!heating && (temp/4) < target_temp - 2) {
 				heat_on();
-			} else if (heating && temp > target_temp) {
+			} else if (heating && (temp/4) > target_temp) {
 				heat_off();
 			}
 
@@ -251,7 +251,7 @@ int main()
 			drawletter(31 + 32, 0, LCD_C);
 
 			// AVR internal core temperature sensor
-			print_num(74, 0, temp2, 3, 0);
+			print_num(74, 0, target_temp, 3, 0);
 			drawletter(74 + 15, 0, LCD_DEGREES);
 			drawletter(74 + 19, 0, LCD_C);
 
