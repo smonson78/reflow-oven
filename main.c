@@ -155,7 +155,7 @@ uint8_t temp_at_position(uint16_t second) {
 	// stage_proportion is now the percentage of the way through the stage
 
 	// Find the temp
-	uint16_t target_temp = stop_degrees - start_degrees;
+	int16_t target_temp = stop_degrees - start_degrees;
 	target_temp *= stage_proportion;
 	target_temp /= 100;
 	target_temp += start_degrees;
